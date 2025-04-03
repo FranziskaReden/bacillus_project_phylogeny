@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.snakemake
+bacillus_assemblies/*
+gtdb/*
+marker_genes/*
+alignments/*
 
 # C extensions
 *.so
