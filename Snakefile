@@ -1,3 +1,8 @@
+# Snakemake workflow for Bacillus project
+# Copyright (c) 2025 Franziska Reden
+# This workflow is licensed under the GNU General Public License v3.0 (GPL-3.0)
+# See LICENSE file for details.
+
 configfile: "config.yaml"
 
 rule all:
@@ -71,26 +76,23 @@ rule overlay_alignment:
 rule find_sub_model:
     input: "alignments/fna/muscle/{marker}.fna.afa"
     output: "alignments/fna/muscle/{marker}.iqtree"
+    threads: 10
     shell: """
-        raxml-ng --msa alignments/fna/muscle/{wildcards.marker}.fna.afa --check -m GTR+G
-        if [ -f alignments/fna/muscle/{wildcards.marker}.fna.afa.raxml.reduced.phy ]; then 
-            iqtree2mod -s alignments/fna/muscle/{wildcards.marker}.fna.afa.raxml.reduced.phy -m MF --seqtype DNA --prefix {wildcards.marker} > alignments/fna/muscle/{wildcards.marker}.iqtree.log 2>&1
-        else;
-            iqtree2mod -s alignments/fna/muscle/{wildcards.marker}.fna.afa -m MF --seqtype DNA --prefix {wildcards.marker} > alignments/fna/muscle/{wildcards.marker}.iqtree.log 2>&1
-        fi;
+        BASENAME=$(basename "{input}" .fna.afa)
+        bin/iqtree2 -s {input} --prefix modeltest/"$BASENAME" -m MF -T {threads} --seqtype DNA
     """
 
 rule ml_tree:
     input: 
-        model_file="alignments/fna/muscle/{marker}.iqtree"
+        model_file=model_file="alignments/fna/muscle/{marker}.iqtree"
+        alignment_file="alignments/fna/muscle/{marker}.fna.afa"
     output: "alignments/fna/muscle/{marker}.mlsearch"
-    threads: 8 
+    threads: 10 
     shell: """
-        model=$(grep "Best-fit model according to BIC:" {input.model_file} | awk '{print $NF}')
-        if [ -f alignments/fna/muscle/{wildcards.marker}.fna.afa.raxml.reduced.phy ]; then 
-            ali_file=$"alignments/fna/muscle/{wildcards.marker}.fna.afa.raxml.reduced.phy"
-        else
-            ali_file=$"alignments/fna/muscle/{wildcards.marker}.fna.afa"
-        fi;
-        raxml-ng --msa $ali_file --model $model --prefix alignments/fna/muscle/{wildcards.marker}.mlsearch --all  > alignments/fna/muscle/{wildcards.marker}.mlsearch.log 2>&1
+        MODEL=$(grep "Best-fit model according to BIC:" {input.model_file} | awk '{print $NF}')
+        BASENAME=$(basename "{input.alignment_file}" .fna.afa)
+
+        for i in $(seq 1 50); do
+            bin/iqtree2 -s {input.alignment_file} -m "$MODEL" -T AUTO --seqtype DNA --keep-ident --prefix model_selection/"$BASENAME"/"$BASENAME"_"$i" >> "$BASENAME"/"$BASENAME".iqlog 2>&1
+        done;
     """

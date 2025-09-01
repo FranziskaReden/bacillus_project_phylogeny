@@ -26,12 +26,12 @@ def exchange_names(columns:list) -> list:
 
     return new_names
 
-def plot_identity_matrix_masked(target_folder: str, limit = 0.95, rename: bool = False):
+def plot_identity_matrix_masked(matirx_file:str, target_folder: str, limit = 0.95, rename: bool = False):
     
     print(f'Plot identity matrix...')
 
     # Load identity matrix
-    matrix = pd.read_csv(os.path.join(target_folder, 'identity_matrix.tsv'), sep='\t', index_col=0)
+    matrix = pd.read_csv(matirx_file, sep='\t', index_col=0)
     
     # Ensure the diagonal is 1
     for col in matrix.columns:
@@ -77,11 +77,11 @@ def plot_identity_matrix_masked(target_folder: str, limit = 0.95, rename: bool =
     plt.savefig(os.path.join(target_folder, output_file), bbox_inches='tight', format='pdf', dpi=200)
     plt.show()
 
-def plot_identity_matrix(target_folder:str, rename:bool = False):
+def plot_identity_matrix(matrix_file, target_folder:str, rename:bool = False):
 
     print(f'Plot identity matrix...')
 
-    matrix = pd.read_csv(os.path.join(target_folder, 'identity_matrix.tsv'), sep='\t', index_col=0)
+    matrix = pd.read_csv(matrix_file, sep='\t', index_col=0)
     for col in matrix.columns:
         matrix.at[col, col] = 1
 
@@ -243,6 +243,69 @@ def create_super_alignment(folder:str, target_folder:str) -> dict:
 
     return super_alignment
 
+def choose_best_candidate(candidates:list, matrix:pd.DataFrame, alignment:dict) -> list:
+
+    print(candidates)
+    # Get the identities between the candidates
+    score = {}
+    for idx in candidates:
+        score[idx] = 0
+        for idx2 in candidates:
+            if idx != idx2:
+                score[idx] += matrix.at[idx, idx2]
+    
+    # See which candidate has the highest identity score over all candidates
+    highest_score = 0
+    choose_best = ''
+    for key, item in score.items():
+        if item > highest_score:
+            choose_best = key
+            highest_score = item
+        elif item == highest_score:
+            string1 = str(alignment[key])
+            string2 = str(alignment[choose_best])
+            if string1.count('-') < string2.count('-'):
+                choose_best = key
+                highest_score = item
+
+    # Return representative
+    candidates.remove(choose_best)
+    return candidates
+
+def choose_representative(to_be_removed:list, target_folder:str, alignment:dict) -> list:
+
+    matrix = pd.read_csv(os.path.join(target_folder, 'identity_matrix.tsv'), sep='\t', index_col=0)
+
+    for col in matrix.columns:
+        if col in to_be_removed:
+            continue
+        # Get the genomes that are close to the genome in the column
+        close_genomes = matrix[matrix[col] >= 0.95].index.to_list()
+        # Remove assemblies from the list
+        close_genomes = [item for item in close_genomes if 'assembly' not in item and item not in to_be_removed]
+        
+        if len(close_genomes) > 1:
+            to_remove = choose_best_candidate(close_genomes, matrix, alignment)
+            for item in to_remove:
+                to_be_removed.append(item)
+
+    return to_be_removed
+
+def filter_alignment(to_be_removed:list, rename:dict, file:str, target_file:str):
+
+    alignment = read_fasta_object(file)
+
+    filtered_seqeucens = []
+    for name, record, in alignment.items():
+        if name not in to_be_removed:
+            if name in rename.keys():
+                record.id = rename[name]
+                record.description = ''
+            filtered_seqeucens.append(record)
+
+    with open(target_file, 'w') as handle:
+        SeqIO.write(filtered_seqeucens, handle, "fasta")
+
 def remove_close_genomes(target_folder):
 
     to_be_removed = []
@@ -257,37 +320,44 @@ def remove_close_genomes(target_folder):
         rename[keep_name] += f'_assembly'
         print(keep_name, rename[keep_name])
 
-    matrix = pd.read_csv(os.path.join(target_folder, 'identity_matrix.tsv'), sep='\t', index_col=0)
-
     alignment = read_fasta_object(os.path.join(target_folder, 'superalignment.fna'))
-    tmp = 0
-    for col in matrix.columns:
-        for idx in matrix.index.to_list()[tmp:]:
-            if col != idx:
-                if matrix.at[col, idx] >= 0.99 and not any('assembly' in name for name in [col, idx]):
-                    print(f'{idx} {col} : {matrix.at[col, idx]}')
-                    string1 = str(alignment[idx])
-                    string2 = str(alignment[col])
+    to_be_removed = choose_representative(to_be_removed, target_folder, alignment)
+    print(f'Number of genomes to be removed: {len(to_be_removed)}')
+    print(f'Number of genomes to be kept: {len(alignment.keys()) - len(to_be_removed)}')
 
-                    if string1.count('-') >= string2.count('-'):
-                        to_be_removed.append(col)
-                    else:
-                        to_be_removed.append(idx)
-        tmp+=1
+    filter_alignment(to_be_removed, rename, os.path.join(target_folder, 'superalignment.fna'), os.path.join(target_folder, 'superalignment_reduced.fna'))
+    # Remove genomes from the identity matrix
+    matrix = pd.read_csv(os.path.join(target_folder, 'identity_matrix.tsv'), sep='\t', index_col=0)
+    # Remove genomes from the identity matrix
+    for item in to_be_removed:
+        matrix.drop(item, axis=1, inplace=True)
+        matrix.drop(item, axis=0, inplace=True)
 
-    filtered_seqeucens = []
-    for name, record, in alignment.items():
-        if name not in to_be_removed:
-            if name in rename.keys():
-                record.id = rename[name]
-                record.description = ''
-            filtered_seqeucens.append(record)
+    # Add the new genome names to the identity matrix  
+    for name, new in rename.items():
+        if name in matrix.columns:
+            matrix.rename(columns={name: new}, inplace=True)
+        if name in matrix.index:
+            matrix.rename(index={name: new}, inplace=True)
 
-    with open(os.path.join(target_folder, 'superalignment_reduced.fna'), 'w') as handle:
-        SeqIO.write(filtered_seqeucens, handle, "fasta")
+    # Save the updated identity matrix
+    matrix_file = os.path.join(target_folder, 'identity_matrix_reduced.tsv')
+    matrix.to_csv(matrix_file, sep='\t', index = True)
 
-    alignment = read_fasta_object(os.path.join(target_folder, 'superalignment_reduced.fna'))
+    if not os.path.exists('alignments/reduced'):
+        os.mkdir('alignments/reduced')
+    if not os.path.exists('alignments/reduced/fna'):
+        os.mkdir('alignments/reduced/fna')
+    if not os.path.exists('alignments/reduced/faa'):
+        os.mkdir('alignments/reduced/faa')
+
+    plot_identity_matrix(matrix_file, 'alignments/reduced/fna')
+    plot_identity_matrix(matrix_file, 'alignments/reduced/fna', rename=True)
+
+    plot_identity_matrix_masked(matrix_file, 'alignments/reduced/fna', limit=0.95)
+    plot_identity_matrix_masked(matrix_file, 'alignments/reduced/fna', limit=0.95, rename=True)
     
+    alignment = read_fasta_object(os.path.join(target_folder, 'superalignment_reduced.fna'))
     partitions = {}
     with open(os.path.join(target_folder, 'partitions.txt')) as f:
         lines = f.readlines()
@@ -300,12 +370,17 @@ def remove_close_genomes(target_folder):
         start, end = limits
         # Create an output file for each gene
         with open(os.path.join(target_folder, f'{gene}.fna'), 'w') as w:
-            for gene, record in alignment.items():
+            for name, record in alignment.items():
                 # Slice the sequence according to the partition's limits
                 sliced_seq = record.seq[start:end]
                 if not sliced_seq == '-'*len(sliced_seq):
                     # Write the header and the sliced sequence to the file
                     w.write(f">{record.id}\n{sliced_seq}\n")
+
+    for gene in partitions.keys():
+        gene_faa = read_fasta_object(f'alignments/faa/{gene}.faa')
+        filter_alignment(to_be_removed, rename, f'alignments/faa/{gene}.faa', f'alignments/reduced/faa/{gene}.faa')
+        filter_alignment(to_be_removed, rename, f'alignments/fna/{gene}.fna', f'alignments/reduced/fna/{gene}.fna')
 
 def main():
 
@@ -313,16 +388,16 @@ def main():
     parser.add_argument("--folder", "-f", type=str, help="Name of the folder containing aignments.")
     args = parser.parse_args()
 
-    target_folder = 'alignments/supermatrix'
-    #super_alignment = create_super_alignment(args.folder, target_folder)
+    target_folder = 'alignments/reduced/supermatrix'
+    super_alignment = create_super_alignment(args.folder, target_folder)
     #matrix = calc_identity_matrix(target_folder, super_alignment)
-    #plot_identity_matrix(target_folder)
-    #plot_identity_matrix(target_folder, rename=True)
+    #plot_identity_matrix(os.path.join(target_folder, 'identity_matrix.tsv'), target_folder)
+    #plot_identity_matrix(os.path.join(target_folder, 'identity_matrix.tsv'), target_folder, rename=True)
 
-    #plot_identity_matrix_masked(target_folder, limit=0.99)
-    #plot_identity_matrix_masked(target_folder, limit=0.99, rename=True)
+    #plot_identity_matrix_masked(os.path.join(target_folder, 'identity_matrix.tsv'), target_folder, limit=0.99)
+    #plot_identity_matrix_masked(os.path.join(target_folder, 'identity_matrix.tsv'), target_folder, limit=0.99, rename=True)
 
-    remove_close_genomes(target_folder)
+    #remove_close_genomes(target_folder)
     return 0
 
 if __name__ == "__main__":

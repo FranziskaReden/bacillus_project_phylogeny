@@ -7,6 +7,12 @@ bacillus_assemblies/*
 gtdb/*
 marker_genes/*
 alignments/*
+gene_trees
+au_test
+data
+*slurm
+scripts/create_partition_file.py
+scripts/extract_trees.py
 
 # C extensions
 *.so
