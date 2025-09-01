@@ -13,6 +13,7 @@ rule all:
 rule annotate:
     input: "bacillus_assemblies/{genome}/{genome}.fasta"
     output: "bacillus_assemblies/prokka/{genome}/{genome}.gff"
+    conda: "environments/prokka_envs.yaml"
     shell:"""
         prokka --outdir bacillus_assemblies/prokka/{wildcards.genome} --prefix {wildcards.genome} {input} --force"
     """
@@ -24,6 +25,7 @@ rule get_gtdb:
         "bacillus_assemblies/prokka/hmm_PGAP.tsv",
         "gtdb/bac120_taxonomy.tsv",
         "gtdb/bac120.tree"
+    conda: "environments/prokka_envs.yaml"
     script: "scripts/retrieve_gtdb_data.py"
 
 rule retrieve_marker_genes:
@@ -33,12 +35,14 @@ rule retrieve_marker_genes:
         "bacillus_assemblies/prokka/hmm_PGAP.tsv",
         "gtdb/bac120_taxonomy.tsv"
     output: "gtdb/bac120_taxonomy_expanded.tsv"
+    conda: "environments/prokka_envs.yaml"
     script: "scripts/retrieve_marker_genes.py"
 
 rule compare_marker_genes:
     input: "gtdb/bac120_taxonomy_expanded.tsv"
     output: "bacillus_assemblies/prokka/{genome}/{genome}_closest_genomes.tsv",
         "bacillus_assemblies/prokka/{genome}/{genome}_genes_identity.tsv"
+    conda: "environments/prokka_envs.yaml"
     shell: """
         python scripts/compare_marker_genes.py -a {wildcards.genome}
     """
@@ -51,6 +55,7 @@ rule choose_genomes:
         "marker_genes/best_hits.tsv",
         expand("alignments/faa/{marker}.faa", marker=config["marker_genes"]),
         expand("alignments/fna/{marker}.fna", marker=config["marker_genes"])
+    conda: "environments/prokka_envs.yaml"
     script: "scripts/choose_genomes.py"
 
 rule create_aa_alignment:
@@ -59,6 +64,7 @@ rule create_aa_alignment:
         alignments="alignments/faa/muscle/{marker}.faa.efa",
         confidence="alignments/faa/muscle/{marker}.faa.cefa",
         best_alignment="alignments/faa/muscle/{marker}.faa.afa"
+    conda: "environments/prokka_envs.yaml"
     threads: 2
     shell: """
         muscle5 -align {input} -stratified -output {output.alignments} -threads 2 > {output.alignments}.log 2>&1
@@ -69,6 +75,7 @@ rule create_aa_alignment:
 rule overlay_alignment:
     input: "alignments/faa/muscle/{marker}.faa.afa"
     output: "alignments/fna/muscle/{marker}.fna.afa"
+    conda: "environments/prokka_envs.yaml"
     shell: """
         python scripts/overlap_alignment.py -m {wildcards.marker}
     """

@@ -1,0 +1,12 @@
+name: prokka_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas
+  - numpy
+  - biopython
+  - tqdm
+  - prokka=1.14.6

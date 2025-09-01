@@ -1,1 +1,1 @@
-# bacillus_project
+# bacillus_project_phylogeny
