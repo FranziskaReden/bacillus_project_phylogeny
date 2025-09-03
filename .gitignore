@@ -4,9 +4,9 @@ __pycache__/
 *$py.class
 .snakemake
 bacillus_assemblies/*
-gtdb/*
-marker_genes/*
-alignments/*
+gtdb
+marker_genes
+alignments
 gene_trees
 au_test
 data
@@ -14,6 +14,8 @@ data
 scripts/create_partition_file.py
 scripts/extract_trees.py
 bin/*
+
+config_genera_original.csv
 
 # C extensions
 *.so

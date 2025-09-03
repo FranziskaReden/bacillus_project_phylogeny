@@ -21,7 +21,11 @@ rule annotate:
     output: "bacillus_assemblies/prokka/{genome}/{genome}.gff"
     conda: "environments/prokka_envs.yaml"
     shell:"""
-        prokka --outdir bacillus_assemblies/prokka/{wildcards.genome} --prefix {wildcards.genome} {input} --force"
+        prokka \
+            --outdir bacillus_assemblies/prokka/{wildcards.genome} \
+            --prefix {wildcards.genome} \
+            {input} \
+            --force
     """
 
 rule get_gtdb:
@@ -61,11 +65,13 @@ rule identity_alignment:
     Align aa sequences using muscle5 to calculate the average indenity between genomes based on the marker genes.
     """
     input:
-        faa_ali="marker_genes/reps/faa/{marker_genes}.faa",
+        faa_ali="marker_genes/reps/faa/{marker}.faa",
     output:
-        faa_alignment="marker_genes/reps/faa/alignment/{marker_genes}.aln"
+        faa_alignment="marker_genes/reps/faa/alignment/{marker}.aln"
     threads: 1
     shell:"""
+        mkdir -p marker_genes/reps/faa/alignment/
+
         sed -i 's/*//g' {input.faa_ali}
         bin/muscle5 -align {input.faa_ali} -output {output.faa_alignment} -threads 1
     """
@@ -75,13 +81,16 @@ rule overlay_identity_alignment:
     Overlay the protein alignment onto the dna sequences to create a codon aware alignment.
     """
     input:
-        faa_ali = "marker_genes/reps/faa/alignment/{marker_genes}.aln",
-        fna_ali = "marker_genes/reps/fna/{marker_genes}.fna"
+        faa_ali = "marker_genes/reps/faa/alignment/{marker}.aln",
+        fna_ali = "marker_genes/reps/fna/{marker}.fna"
     output:
-        fna_alignment = "marker_genes/reps/fna/alignment/{marker_genes}.aln"
+        fna_alignment = "marker_genes/reps/fna/alignment/{marker}.aln"
     conda: "environments/prokka_envs.yaml"
     shell:"""
-        python scripts/overlay_alignment.py --faa {input.faa_ali} --fna {input.fna_ali} --out {output.fna_alignment}
+        python scripts/overlay_alignment.py \
+                --faa {input.faa_ali} \
+                --fna {input.fna_ali} \
+                --out {output.fna_alignment}
     """
 
 rule choose_genomes:
@@ -93,7 +102,7 @@ rule choose_genomes:
     representative genomes are also included.
     """
     input:
-        expand("marker_genes/reps/fna/alignment/{marker_genes}.aln", marker_genes=config["marker_genes"])
+        expand("marker_genes/reps/fna/alignment/{marker}.aln", marker_genes=config["marker_genes"])
     output:
         expand("alignments/faa/{marker}.faa", marker=config["marker_genes"]),
         expand("alignments/fna/{marker}.fna", marker=config["marker_genes"])
@@ -109,7 +118,7 @@ rule alignment:
     input:
         "alignments/faa/{marker}.faa"
     output:
-        alignment="alignments/faa/{marker}.faa.efa",
+        alignments="alignments/faa/{marker}.faa.efa",
         confidence="alignments/faa/{marker}.faa.cefa",
         best_alignment="alignments/faa/{marker}.faa.afa"
     conda: "environments/prokka_envs.yaml"
@@ -117,7 +126,7 @@ rule alignment:
     shell: """
         sed -i 's/*//g' {input}
 
-        muscle5 -align {input} -stratified -output {output.alignment} -threads 2 > {output.alignment}.log 2>&1
+        muscle5 -align {input} -stratified -output {output.alignments} -threads 2 > {output.alignments}.log 2>&1
         muscle5 -addconfseq {output.alignments} -output {output.confidence} >> {output.alignments}.log 2>&1
         muscle5 -maxcc {output.alignments} -output {output.best_alignment} >> {output.alignments}.log 2>&1
     """
@@ -130,7 +139,7 @@ rule overlay_alignment:
         faa_ali = "alignments/faa/{marker}.faa.afa",
         fna_ali = "alignments/fna/{marker}.fna"
     output:
-        fna_alignment = "alignments/fna/{marker_genes}.fna.aln"
+        fna_alignment = "alignments/fna/{marker}.fna.aln"
     conda: "environments/prokka_envs.yaml"
     shell:"""
         python scripts/overlay_alignment.py --faa {input.faa_ali} --fna {input.fna_ali} --out {output.fna_alignment}
@@ -153,7 +162,7 @@ rule find_sub_model:
                     --prefix model/{wildcards.marker}/{wildcards.marker}
 
         MODEL=$(grep "Best-fit model according to BIC:" model/{wildcards.marker}/{wildcards.marker}.iqtree | awk '{print $NF}')
-        less $MODEL > {output}
+        echo $MODEL > {output}
     """
 
 rule infer_ml_trees:
@@ -192,16 +201,11 @@ rule au_test:
     shell:"""
         MODEL=$(< {input.model})
 
-        if [ -f au_test/{wildcards.marker}/{wildcards.marker}.nwk ]; then 
-            rm au_test/{wildcards.marker}/{wildcards.marker}.nwk	
-        fi;
-
-        for i in gene_trees/{wildcards.marker}/{wildcards.marker}*.treefile; do
-            less $i >> au_test/{wildcards.marker}/{wildcards.marker}.nwk	
-        done;
+        cat gene_trees/{wildcards.marker}/{wildcards.marker}*.treefile \
+                    > au_test/{wildcards.marker}/{wildcards.marker}.nwk
 
         bin/iqtree2 -s {input.alignment} \
-                    -z au_test/{wildcards.marker}.nwk \
+                    -z au_test/{wildcards.marker}/{wildcards.marker}.nwk \
                     -m "$MODEL" \
                     -n 0 -zb 10000 -zw -au \
                     --keep-ident \
@@ -218,10 +222,9 @@ rule extract_trees:
         trees="au_test/{marker}/{marker}.nwk"
     output: "au_test/{marker}/{marker}_selected.nwk"
     conda: "environments/prokka_envs.yaml"
-    shell:
-        """
-        python scripts/extract_trees.py --iqtree {input.iqtree} --trees {input.trees} --ouput {output}
-        """
+    shell:"""
+        python scripts/extract_trees.py --iqtree {input.iqtree} --trees {input.trees} --output {output}
+    """
     
 rule infer_species_tree:
     """
@@ -234,13 +237,7 @@ rule infer_species_tree:
     shell:"""
         mkdir -p species_tree
 
-        if [ -f species_tree/all_trees.nwk ]; then
-            rm species_tree/all_trees.nwk
-        fi;
-
-        for i in au_test/*/*_selected.nwk; do
-            less $i > species_tree/all_trees.nwk
-        done;
+        cat au_test/*/*_selected.nwk > species_tree/all_trees.nwk
 
         bin/ASTER-Linux/bin/astral4 -i species_tree/all_trees.nwk \
                                 -o species_tree/species_tree \

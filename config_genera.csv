@@ -1,26 +1,26 @@
 assembly,closest_putative_relative,genus
-SRL152,Peribacillus frigoritolerans,Peribacillus
-SRL163,Bacillus velezensis,Bacillus
-SRL179,Neobacillus jeddahensis,Neobacillus
-SRL215,Bacillus_A thuringiensis_S,Bacillus_A
-SRL218,Bacillus_A thuringiensis_S,Bacillus_A
-SRL221,Bacillus velezensis,Bacillus
-SRL224,Bacillus_A thuringiensis_S,Bacillus_A
-SRL244,Bacillus velezensis,Bacillus
-SRL266,Peribacillus frigoritolerans,Peribacillus
-SRL335,Cytobacillus oceanisediminis_B,Cytobacillus
-SRL337,Bacillus_BM salacetis,Bacillus_BM
-SRL340,Peribacillus frigoritolerans,Peribacillus
-SRL342,Paenibacillus sp001955855,Paenibacillus
-SRL368,Bacillus_A thuringiensis_S,Bacillus_A
-SRL369,Bacillus_AB infantis,Bacillus_AB
-SRL374,Bacillus velezensis,Bacillus
-SRL379,Bacillus velezensis,Bacillus
-SRL389,Peribacillus frigoritolerans,Peribacillus
-SRL398,Paenibacillus sp001955855,Paenibacillus
-SRL543,Bacillus_AB infantis,Bacillus_AB
-SRL544,Rossellomorea haikouensis_A,Rossellomorea
-SRL571,Bacillus altitudinis,Bacillus
-SRL656,Bacillus paralicheniformis,Bacillus
-SRL658,Bacillus paralicheniformis,Bacillus
-SRL662,Bacillus paralicheniformis,Bacillus
+SRL152,Species1,GenusA
+SRL163,Species2,GenusB
+SRL179,Species3,GenusC
+SRL215,Species4,GenusD
+SRL218,Species4,GenusD
+SRL221,Species2,GenusB
+SRL224,Species4,GenusD
+SRL244,Species2,GenusB
+SRL266,Species1,GenusA
+SRL335,Species5,GenusE
+SRL337,Species6,GenusF
+SRL340,Species1,GenusA
+SRL342,Species7,GenusG
+SRL368,Species4,GenusD
+SRL369,Species8,GenusH
+SRL374,Species2,GenusB
+SRL379,Species2,GenusB
+SRL389,Species1,GenusA
+SRL398,Species7,GenusG
+SRL543,Species8,GenusH
+SRL544,Species9,GenusI
+SRL571,Species10,GenusB
+SRL656,Species11,GenusB
+SRL658,Species11,GenusB
+SRL662,Species11,GenusB
