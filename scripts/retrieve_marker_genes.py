@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import Bio.SeqIO
-import io
 
 from utils import read_taxonomy, subsample_tree, read_pgap, read_in_gff, clean_folder
 
@@ -52,12 +51,16 @@ def expand_taxonomy(file_name:str) -> pd.DataFrame:
 
     return taxonomy
 
-def get_relevant_genomes(rank:str, name:str, taxonomy:pd.DataFrame) -> set:
+def get_relevant_genomes(relevant_genera:list, taxonomy:pd.DataFrame) -> set:
     """
     Get a subset of the genomes based on a specific rank and name using the taxonomy dataframe
     """
-    print(f"Getting a subset of the genomes with rank {rank} and clade {name}...")
-    genomes = taxonomy[taxonomy[rank].str.contains(name)]['accession'].to_list()
+    genomes = []
+    for genus in relevant_genera:
+        name = genus.strip()
+        new_genomes = taxonomy[taxonomy['genus'] == name]['accession'].to_list()
+        print(''f'Number of genomes in clade {name}: {len(new_genomes)}')
+        genomes += new_genomes
 
     return set(genomes)
 
@@ -89,11 +92,10 @@ def subsample_marker_genes(genomes:set, type='fna', rep = True) -> set:
 
     for file in os.listdir(input_folder):
         marker_genes.append(file.replace(f'.{file.split('.')[-1]}', ''))
-        if os.path.exists(os.path.join(target_folder, file)) == False:
-            with open(os.path.join(target_folder, file), 'w') as out_fasta:
-                for record in Bio.SeqIO.parse(os.path.join(input_folder, file), "fasta"):
-                    if record.id in genomes:
-                        Bio.SeqIO.write(record, out_fasta, "fasta")
+        with open(os.path.join(target_folder, file), 'w') as out_fasta:
+            for record in Bio.SeqIO.parse(os.path.join(input_folder, file), "fasta"):
+                if record.id in genomes:
+                    Bio.SeqIO.write(record, out_fasta, "fasta")
 
     return set(marker_genes)
         
@@ -162,7 +164,7 @@ def get_annotated_marker_genes(assembly:str, gene_families:pd.DataFrame, input_f
 def get_marker_genes_all_assemblies(folder:str, gene_families:pd.DataFrame):
 
     for subfolder in os.listdir(folder):
-        if subfolder not in ['hmm_PGAP.tsv', 'hmm_PGAP_marker_genes.tsv']:
+        if 'assembly' in subfolder:
             if not os.path.exists(os.path.join(folder, f'{subfolder}/{subfolder}_marker_genes.fna')):
                 print(f'Retrieving marker genes for assembly {subfolder}...')
                 get_annotated_marker_genes(subfolder, gene_families, input_folder=folder)
@@ -207,20 +209,25 @@ def write_marker_genes_all_assemblies(assembly_folder):
                     Bio.SeqIO.write(record, out_fasta, "fasta")
 
 def main():
+    # Read in GTDB taxonomy
     taxonomy = expand_taxonomy("gtdb/bac120_taxonomy.tsv")
-    genomes = get_relevant_genomes('class', 'Bacilli', taxonomy)
+    # Read in relevant genera for downstream analysis
+    relevant_genera = pd.read_csv("config_genera.csv", sep=',')['genus'].unique()
+
+    # Retrieve genomes that are relevant for the analysis (i.e. belong to relevant genera)
+    genomes = get_relevant_genomes(relevant_genera, taxonomy)
 
     subsample_tree("gtdb/bac120.tree", genomes, taxonomy)
 
     marker_genes = subsample_marker_genes(genomes, 'faa')
     _ = subsample_marker_genes(genomes, 'fna')
     _ = subsample_marker_genes(genomes, 'faa', rep=False)
-    _ = subsample_marker_genes(genomes, 'fna', rep=False) 
+    _ = subsample_marker_genes(genomes, 'fna', rep=False)
 
     gene_families = retireve_gene_families('bacillus_assemblies/prokka/hmm_PGAP.tsv', marker_genes)
     gene_families.to_csv('hmm_PGAP_marker_genes.tsv', sep='\t', index = False)
-    get_marker_genes_all_assemblies('bacillus_assemblies/prokka', gene_families)
 
+    get_marker_genes_all_assemblies('bacillus_assemblies/prokka', gene_families)
     write_marker_genes_all_assemblies('bacillus_assemblies/prokka')
     
 if __name__ == "__main__":

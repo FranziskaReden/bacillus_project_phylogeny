@@ -63,22 +63,20 @@ def write_dna_alignment(aa_file_name, dna_file_name, file_name_aligned):
 def main():
 
     parser = argparse.ArgumentParser(description="Overlay AA alignment onto DNA sequences.")
-    parser.add_argument("--marker", "-m", type=str, help="Name of the assembly.")
-    parser.add_argument("--folder", '-f', type=str, default='alignments', help="Folder with the alignments.")
+    parser.add_argument("--faa", type=str, help="Naqme of protein alignment file.")
+    parser.add_argument("--fna", type=str, help="Name of DNA fasta file.")
+    parser.add_argument("--out", '-o', type=str, help="Name of output file.")
     args = parser.parse_args()
 
-    print(f'Overlay AA alignment onto DNA sequences for marker {args.marker}...')
+    print(f'Overlay AA alignment onto DNA sequences for marker alignment {args.faa}...')
 
-    dna_folder = os.path.join(args.folder, 'fna/')
-    if not os.path.exists(dna_folder):
-        print(f'Create folder {dna_folder}...')
-        os.mkdir(dna_folder)
+    # Create output folder if it does not exist yet
+    output_dir = args.out.replace(args.out.split('/')[-1], '')
+    os.makedirs(f'{output_dir}', exist_ok=True)
 
-    write_dna_alignment(os.path.join(args.folder, f'faa/{args.marker}.faa.afa'), 
-                        os.path.join(args.folder, f'fna/{args.marker}.fna'),
-                        os.path.join(args.folder, f'fna/{args.marker}.fna.afa'))
+    write_dna_alignment(args.faa, args.fna, args.out) 
     
-    print(f'DNA alignment was written into {args.folder}/fna/{args.marker}.fna.afa')
+    print(f'DNA alignment was written into {args.out}')
     
     return 0
 

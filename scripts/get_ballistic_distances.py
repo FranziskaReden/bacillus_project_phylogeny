@@ -47,9 +47,9 @@ def read_tree(treefile):
     return tree
 
 def main():
-    file_name = './data/species_tree_support_rename.nwk'
+    file_name = 'species_tree/species_tree_support_rename.nwk'
     tree = read_tree(file_name)
-    calculate_balistic_distances(tree, './data/ballistic_distances.tsv')
+    calculate_balistic_distances(tree, 'species_tree/ballistic_distances.tsv')
 
 if __name__ == "__main__":
     main()

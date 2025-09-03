@@ -56,7 +56,7 @@ def read_tree(file_name:str, taxonomy:pd.DataFrame):
             clade.confidence = support
             clade.name = None
 
-    with open('color_code.tsv', 'w') as w:
+    with open('species_tree/color_code.tsv', 'w') as w:
         w.write('taxon\tgroup\tcolor\n')
         for clade in tree.get_terminals():
             if 'assembly' not in clade.name:
@@ -72,7 +72,7 @@ def read_tree(file_name:str, taxonomy:pd.DataFrame):
             else:
                 w.write(f'{clade.name}\tassembly\t#e41a1c\n')
 
-    Phylo.write(tree, "species_tree_support.nwk", "newick")
+    Phylo.write(tree, "species_tree/species_tree_support.nwk", "newick")
 
     with open('color_code_rename.tsv', 'w') as w:
         w.write('taxon\tgroup\tcolor\n')
@@ -91,11 +91,11 @@ def read_tree(file_name:str, taxonomy:pd.DataFrame):
             else:
                 w.write(f'{clade.name}\tassembly\t#e41a1c\n')
 
-    Phylo.write(tree, "species_tree_support_rename.nwk", "newick")
+    Phylo.write(tree, "species_tree/species_tree_support_rename.nwk", "newick")
 
 def main():
     taxonomy = read_taxonomy("gtdb/bac120_taxonomy_expanded.tsv")
-    treefile = "species_tree.nwk"
+    treefile = "species_tree/species_tree.nwk"
 
     read_tree(treefile, taxonomy)
     return 0 

@@ -147,7 +147,7 @@ def retrieve_all_reps_names():
 
 def calculate_sequence_identity(seq1, seq2):
     aligner = PairwiseAligner()
-    aligner.mode = "local"  # Use local alignment instead of global
+    aligner.mode = "global"
     
     # Perform local pairwise alignment
     alignments = aligner.align(seq1, seq2)
