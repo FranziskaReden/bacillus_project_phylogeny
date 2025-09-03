@@ -13,6 +13,7 @@ data
 *slurm
 scripts/create_partition_file.py
 scripts/extract_trees.py
+bin/*
 
 # C extensions
 *.so
