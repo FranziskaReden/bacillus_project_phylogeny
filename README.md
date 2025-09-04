@@ -53,7 +53,7 @@ Note, that the `--use-conda` command is necessary as the workflow uses a conda e
 
 ## License
 
-This workflow is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the [LICENSE](LICENSE) file for details.
+This workflow is licensed under the **Creative Commons Licence (CC0-1.0 license)**. See the [LICENSE](LICENSE) file for details.
 
 ## References
 
